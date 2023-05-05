@@ -1,0 +1,142 @@
+from interpretator import Tok_r
+from BigFloat import BigFloat, BigFloatAttributes
+
+
+def is_null(n):
+    n1 = n.split('e')[0]
+    n_m = n1.split('.')
+    if len(n_m) == 2:
+        if (n_m[0] == '' or int(n_m[0]) == 0) and (n_m[1] == '' or int(n_m[1]) == 0):
+            return True
+    else:
+        if n_m[0] == '' or int(n_m[0]) == 0:
+            return True
+    return False
+
+
+def att(n):
+    f, integ, frac, exp = True, '', '', ''
+    if n[0] == '-':
+        f = False
+        n = n[1:]
+    if n[0] == '+':
+        n = n[1:]
+
+    if '.' in n:
+        integ, frac = [i for i in n.split('.')]
+        if 'e' in frac:
+            frac, exp = [i for i in frac.split('e')]
+    elif 'e' in n:
+        integ, exp = [i for i in n.split('e')]
+    else:
+        integ = n
+    return f, integ, frac, exp
+
+
+def inf_function(a, b, c):
+    if (a == 'inf' or a == '+inf') and not 'inf' in b and not 'inf' in c:
+        print('x1 = -0.0 + (nani)' + '\n' + 'x2 = -0.0 - (nani)')
+    elif (not 'inf' in a and (b == 'inf' or b == '+inf') and not 'inf' in c) or (
+            not 'inf' in a and (b == 'inf' or b == '+inf') and c == '-inf'):
+        print('x1 = nan' + '\n' + 'x2 = -inf')
+    elif not 'inf' in a and not 'inf' in b and c == '-inf':
+        print('x1 = inf' + '\n' + 'x2 = -inf')
+    elif not 'inf' in a and b == '-inf' and c == '-inf':
+        print('x1 = inf' + '\n' + 'x2 = nan')
+    elif (a == '-inf' and not 'inf' in b and not 'inf' in c) or ('inf' in a and 'inf' in b):
+        print('x1 = nan' + '\n' + 'x2 = nan')
+    elif not 'inf' in a and not 'inf' in b and (c == 'inf' or c == '+inf'):
+        a_ = BigFloatAttributes(*att(a))
+        aa = BigFloat(a_)
+        b_ = BigFloatAttributes(*att(b))
+        bb = BigFloat(b_)
+        i_2 = BigFloatAttributes(True, '2', '', '')
+        ii_2 = BigFloat(i_2)
+        bb.sign = not bb.sign
+        s_1 = ii_2 * aa
+        s_2 = bb / s_1
+        print('x1 =', s_2, '+ (infi)')
+        print('x2 =', s_2, '- (infi)')
+
+
+token = Tok_r()
+a, b, c = map(str, input().split())
+test_a = a
+test_b = b
+test_c = c
+# print(token.interpret(a, 0))
+# print(token.interpret(b, 0))
+# print(token.interpret(c, 0))
+if str(token.interpret(a, 0)) == a and str(token.interpret(b, 0)) == b and str(token.interpret(c, 0)) == c:
+    # print(a, b, c)
+    if 'nan' in a or 'nan' in b or 'nan' in c:
+        print('x1 = nan')
+        print('x2 = nan')
+
+    elif 'inf' in a or 'inf' in b or 'inf' in c:
+        inf_function(a, b, c)
+
+    elif is_null(a) and is_null(b) and is_null(c):
+        print('Корнем является множество всех чисел')
+
+    elif not is_null(a) and not is_null(c):
+        a_ = BigFloatAttributes(*att(a))
+        aa = BigFloat(a_)
+        b_ = BigFloatAttributes(*att(b))
+        bb = BigFloat(b_)
+        c_ = BigFloatAttributes(*att(c))
+        cc = BigFloat(c_)
+        i_4 = BigFloatAttributes(True, '4', '', '')
+        ii_4 = BigFloat(i_4)
+        i_2 = BigFloatAttributes(True, '2', '', '')
+        ii_2 = BigFloat(i_2)
+        i_0 = BigFloatAttributes(True, '0', '', '')
+        ii_0 = BigFloat(i_0)
+        d = bb * bb - ii_4 * aa * cc
+        # print(d, d < ii_0)
+        if d == '0':
+            bb.sign = not bb.sign
+            print('Оба корня совпадают в точке', bb / (ii_2 * aa))
+        elif not d < ii_0:
+            bb.sign = not bb.sign
+            s_1 = ii_2 * aa
+            print('x1 =', (bb + d._sqrt()) / s_1)
+            print('x2 =', (bb - d._sqrt()) / s_1)
+        else:
+            bb.sign = not bb.sign
+            d.sign = not d.sign
+            kor = d._sqrt()
+            s_1 = ii_2 * aa
+            s_2 = bb / s_1
+            s_3 = kor / (s_1)
+            print('x1 =', s_2, '+ (' + str(s_3) + 'i)')
+            print('x2 =', s_2, '- (' + str(s_3) + 'i)')
+
+    elif is_null(a) and not is_null(b):
+        b_ = BigFloatAttributes(*att(b))
+        bb = BigFloat(b_)
+        c_ = BigFloatAttributes(*att(c))
+        cc = BigFloat(c_)
+        cc.sign = not cc.sign
+        print('Оба корня совпадают в точке', cc / bb)
+
+    elif is_null(a) and is_null(b) and not is_null(c):
+        print('Корней нет')
+
+    elif not is_null(a) and is_null(b) and is_null(c):
+        print('x1 = 0')
+        print('x2 = 0')
+
+    elif not is_null(a) and not is_null(b) and is_null(c):
+        a_ = BigFloatAttributes(*att(a))
+        aa = BigFloat(a_)
+        b_ = BigFloatAttributes(*att(b))
+        bb = BigFloat(b_)
+        i_2 = BigFloatAttributes(True, '2', '', '')
+        ii_2 = BigFloat(i_2)
+        bb.sign = not bb.sign
+        print('x1 =', 0)
+        print('x2 =', (bb + bb) / (ii_2 * aa))
+
+else:
+    print('Должны быть введены числа')
