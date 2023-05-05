@@ -1,0 +1,527 @@
+def chr_to_int(chr):
+    if chr == '0':
+        return 0
+    if chr == '1':
+        return 1
+    if chr == '2':
+        return 2
+    if chr == '3':
+        return 3
+    if chr == '4':
+        return 4
+    if chr == '5':
+        return 5
+    if chr == '6':
+        return 6
+    if chr == '7':
+        return 7
+    if chr == '8':
+        return 8
+    if chr == '9':
+        return 9
+
+
+def int_to_chr(integer):
+    if integer == 0:
+        return '0'
+    if integer == 1:
+        return '1'
+    if integer == 2:
+        return '2'
+    if integer == 3:
+        return '3'
+    if integer == 4:
+        return '4'
+    if integer == 5:
+        return '5'
+    if integer == 6:
+        return '6'
+    if integer == 7:
+        return '7'
+    if integer == 8:
+        return '8'
+    if integer == 9:
+        return '9'
+
+
+class LongInt:
+    def __init__(self, value=0):
+        if isinstance(value, str):
+            self.value = list(map(int, value[::-1]))
+        elif isinstance(value, list):
+            self.value = value
+        else:
+            self.value = self.to_list(value)
+
+    def __str__(self):
+        return ''.join(map(str, self.value[::-1]))
+
+    def __int__(self):
+        n = 0
+        for i, v in enumerate(self.value):
+            n += v * 10 ** i
+        return n
+
+    def to_list(self, n):
+        return [int(d) for d in str(n)][::-1]
+
+    def __add__(self, other):
+        result = []
+        carry = 0
+        for i in range(max(len(self.value), len(other.value))):
+            s = carry
+            if i < len(self.value):
+                s += self.value[i]
+            if i < len(other.value):
+                s += other.value[i]
+            carry = s // 10
+            result.append(s % 10)
+        if carry:
+            result.append(carry)
+        return self.__class__(result)
+
+    def __sub__(self, other):
+        result = []
+        borrow = 0
+        for i in range(max(len(self.value), len(other.value))):
+            s = borrow
+            if i < len(self.value):
+                s += self.value[i]
+            if i < len(other.value):
+                s -= other.value[i]
+            if s < 0 and (len(self.value) != 1 and len(other.value) != 1) and\
+                    (other.value[i] != -other.value[i] and i == max(len(self.value), len(other.value))):
+                s += 10
+                borrow = -1
+            else:
+                borrow = 0
+            result.append(s)
+
+        while len(result) > 1 and result[-1] == 0:
+            result.pop()
+
+        return self.__class__(result)
+
+    def __mul__(self, other):
+        result = [0] * (len(self.value) + len(other.value))
+        for i, v1 in enumerate(self.value):
+            carry = 0
+            for j, v2 in enumerate(other.value):
+                s = v1 * v2 + result[i + j] + carry
+                carry = s // 10
+                result[i + j] = s % 10
+            if carry:
+                result[i + len(other.value)] += carry
+        while len(result) > 1 and result[-1] == 0:
+            result.pop()
+        return self.__class__(result)
+
+    def __truediv__(self, other):
+        s_val = self.value[::-1]
+        o_val = other.value[::-1]
+        num1 = s_val[0]
+        num2 = o_val[0]
+        for i in range(1, len(s_val)):
+            num1 = num1 * 10 + s_val[i]
+        for i in range(1, len(o_val)):
+            num2 = num2 * 10 + o_val[i]
+        if num2 == 0:
+            raise ValueError("division by zero")
+        num1, num2 = abs(num1), abs(num2)
+        result = []
+        precision = 12
+        quotient = num1 // num2
+        result.append(str(quotient))
+        remainder = num1 % num2
+        result.append(".")
+        for i in range(precision):
+            remainder *= 10
+            quotient = remainder // num2
+            remainder = remainder % num2
+            result.append(str(quotient))
+        return "".join(result)
+
+
+class BigFloatAttributes:
+
+    def __init__(self, sign, integer, frac, exp):
+        self.sign = sign
+        self.integer = integer
+        self.frac = frac
+        self.exp = exp
+
+
+class SuperDict:
+
+    def __init__(self):
+        self._max = 0
+        self._min = 0
+        self.delta = 0
+        self.dict = {}
+
+    def shift_base(self, shift):
+        self.delta = shift
+        self._min += shift
+        self._max += shift
+
+    def __getitem__(self, item):
+        item = item - self.delta
+        if item in self.dict:
+            return self.dict[item]
+        return 0
+
+    def __setitem__(self, key, value):
+        key = key - self.delta
+        if key < self._min:
+            self._min = key
+        if key > self._max:
+            self._max = key
+
+        self.dict[key] = value
+
+    def __str__(self):
+        res = ''
+        for i in range(self._min, self._max + 1):
+            res += f'[{i}] - {self[i]}\n'
+        return res
+
+    @property
+    def max(self):
+        return self._max
+
+    @property
+    def min(self):
+        return self._min
+
+    def exp(self):
+        if self._max > 30 or self._min < -30:
+            return self._max
+        return 0
+
+    def is_frac(self):
+        if self._max > 30 or self._min < -30 or self._min < 0:
+            return True
+        return False
+
+    def is_exp(self):
+        if self._max > 30 or self._min < -30:
+            return True
+        return False
+
+
+class BigFloat:
+
+    def __init__(self, att: BigFloatAttributes):
+        self.sign = att.sign
+        self.sdict = SuperDict()
+        self.integer = 0
+        self.chr = ''
+        self.exp = 0
+        self.attributes(att)
+
+    def attributes(self, att: BigFloatAttributes):
+        intg, char = '', ''
+        for pos, chr1 in enumerate(att.integer[::-1]):
+            self.sdict[pos] = chr_to_int(chr1)
+            intg += chr1
+
+        for pos, chr2 in enumerate(att.frac):
+            self.sdict[- (1 + pos)] = chr_to_int(chr2)
+            char += chr2
+
+        if att.exp != '':
+            exp = int(att.exp)
+        else:
+            exp = 0
+
+        if exp < 0:
+            if abs(exp) < len(intg):
+                integer = intg[:exp]
+                chr = intg[exp:] + char
+            else:
+                chr = '0' * (abs(exp) - len(intg)) + intg
+                if char != '0':
+                    chr += char
+                integer = ''
+            exp = 0
+            char = chr
+            intg = integer
+
+        self.sdict.shift_base(abs(exp))
+
+        if intg != '':
+            if char != '0' and char != '':
+                if exp != 0:
+                    self.integer = int(intg[::-1] + char) * 10 ** (exp - 1)
+                    if exp > int(char):
+                        self.chr = ''
+                    else:
+                        self.chr = char[exp:]
+                else:
+                    self.integer = int(intg[::-1])
+                    self.chr = char
+            else:
+                self.integer = int(intg[::-1]) * 10 ** exp
+                self.chr = ''
+        elif char != '':
+            if exp != 0:
+                self.integer = int(char) * 10 ** (exp - 1)
+                self.chr = ''
+                if exp > int(char):
+                    self.chr = ''
+                else:
+                    self.chr = char[exp:]
+            else:
+                self.chr = char
+
+        # print(self.integer, self.chr)
+
+    def __str__(self):
+        res = ''
+        if not self.sign:
+            res = '-'
+
+        # целая часть
+        if self.sdict._max > 30 or self.sdict._min < -30:
+            for i in range(self.sdict._max, self.sdict._max - 1, -1):
+                if (res == '' or res == '-') and self.sdict[i] == 0:
+                    pass
+                else:
+                    res += int_to_chr(self.sdict[i])
+        else:
+            for i in range(self.sdict._max, -1, -1):
+                if (res == '' or res == '-') and self.sdict[i] == 0:
+                    pass
+                else:
+                    res += int_to_chr(self.sdict[i])
+
+        # дробь
+        if self.sdict.is_frac():
+            res += '.'
+            if self.sdict._max > 30 or self.sdict._min < -30:
+                for i in range(self.sdict._max - 1, self.sdict._min - 1, -1):
+                    res += int_to_chr(self.sdict[i])
+            else:
+                for i in range(-1, self.sdict._min - 1, -1):
+                    res += int_to_chr(self.sdict[i])
+            b = res[::-1]
+            f = False
+            t = 1
+            for i in range(1, len(b)):
+                if b[i] == b[i - 1] == '0':
+                    f = True
+                    t += 1
+                else:
+                    break
+            if f:
+                res = res[:-t]
+
+        # e
+        if self.sdict.is_exp():
+            res += 'e'
+            res += str(self.sdict.exp())
+
+        return res
+
+    def mini_add(self, other, is_pos_mini):
+        point = max(len(str(self.chr)), len(str(other.chr)))
+
+        d = (self.integer, self.chr)
+
+        integ1 = str(self.integer) + str(self.chr) + ('0' * (point - len(str(self.chr))))
+        integ2 = str(other.integer) + str(other.chr) + ('0' * (point - len(str(other.chr))))
+
+        ab = LongInt(int(integ1))
+        bc = LongInt(int(integ2))
+        q = abs(int(ab + bc))
+        q1 = q // 10 ** point
+        if point != 0:
+            q2 = str(q)[-point:]
+        else:
+            q2 = ''
+
+        tmp = BigFloatAttributes(is_pos_mini, str(q1), str(q2), '')
+        res = BigFloat(tmp)
+
+        return res
+
+    def mini_sub(self, other, is_pos_mini):
+        point = max(len(str(self.chr)), len(str(other.chr)))
+
+        integ1 = str(self.integer) + str(self.chr) + ('0' * (point - len(str(self.chr))))
+        integ2 = str(other.integer) + str(other.chr) + ('0' * (point - len(str(other.chr))))
+
+        ab = LongInt(int(integ1))
+        bc = LongInt(int(integ2))
+        q = abs(int(ab - bc))
+        q1 = q // 10 ** point
+        if point != 0:
+            q2 = str(q)[-point:]
+        else:
+            q2 = ''
+
+        tmp = BigFloatAttributes(is_pos_mini, str(q1), str(q2), '')
+        res = BigFloat(tmp)
+
+        return res
+
+    def __add__(self, other):
+        if self.sign == other.sign == True:
+            return self.mini_add(other, True)
+        elif self.sign == other.sign == False:
+            return self.mini_add(other, False)
+        elif self.sign == True and other.sign == False and self.sdict._max < other.sdict._max:
+            return self.mini_sub(other, False)
+        elif self.sign == True and other.sign == False and self.sdict._max >= other.sdict._max:
+            return self.mini_sub(other, True)
+        elif self.sign == False and other.sign == True and self.sdict._max >= other.sdict._max:
+            return self.mini_sub(other, False)
+        elif self.sign == False and other.sign == True and self.sdict._max < other.sdict._max:
+            return self.mini_sub(other, True)
+
+    def __sub__(self, other):
+        if self.sign == other.sign == True:
+            if self.sdict._max > other.sdict._max:
+                return self.mini_sub(other, True)
+            elif self.sdict._max < other.sdict._max:
+                return self.mini_sub(other, False)
+            elif self.sdict._max == other.sdict._max and self.integer > other.integer:
+                return self.mini_sub(other, True)
+            elif self.sdict._max == other.sdict._max and self.integer < other.integer:
+                return self.mini_sub(other, False)
+            else:
+                if self.chr > other.chr:
+                    return self.mini_sub(other, True)
+                elif self.chr < other.chr:
+                    return self.mini_sub(other, False)
+                else:
+                    return '0'
+
+        if self.sign == other.sign == False:
+            if self.sdict._max > other.sdict._max:
+                return self.mini_sub(other, False)
+            elif self.sdict._max < other.sdict._max:
+                return self.mini_sub(other, True)
+            elif self.sdict._max == other.sdict._max and self.integer > other.integer:
+                return self.mini_sub(other, False)
+            elif self.sdict._max == other.sdict._max and self.integer < other.integer:
+                return self.mini_sub(other, True)
+            else:
+                if self.chr > other.chr:
+                    return self.mini_sub(other, False)
+                elif self.chr < other.chr:
+                    return self.mini_sub(other, True)
+                else:
+                    return '0'
+
+        elif self.sign == True and other.sign == False:
+            return self.mini_add(other, True)
+        elif self.sign == False and other.sign == True:
+            return self.mini_add(other, False)
+
+    def __mul__(self, other):
+        point = len(str(self.chr) + str(other.chr))
+
+        integ1 = str(self.integer) + str(self.chr)
+        integ2 = str(other.integer) + str(other.chr)
+
+        ab = LongInt(int(integ1))
+        bc = LongInt(int(integ2))
+        q = int(ab * bc)
+        q1 = q // 10 ** point
+        if point > len(str(q)):
+            q2 = ('0' * (point - len(str(q))) + str(q))[-point:]
+        elif point != 0:
+            q2 = str(q)[-point:]
+        else:
+            q2 = ''
+
+        tmp = BigFloatAttributes(self.sign == other.sign, str(q1), str(q2), '')
+        res = BigFloat(tmp)
+
+        return res
+
+    def __truediv__(self, other):
+        point = len(str(self.chr) + str(other.chr))
+
+        integ1 = str(self.integer) + str(self.chr) + ('0' * (point - len(str(self.chr))))
+        integ2 = str(other.integer) + str(other.chr) + ('0' * (point - len(str(other.chr))))
+
+        point = ''
+
+        ab = LongInt(int(integ1))
+        bc = LongInt(int(integ2))
+        q = str(ab / bc)
+
+        if 'e' in q:
+            q, point = [i for i in q.split('e')]
+        if '.' in q:
+            q1, q2 = [i for i in q.split('.')]
+        else:
+            q1 = q
+            q2 = ''
+
+
+        tmp = BigFloatAttributes(self.sign == other.sign, str(q1), str(q2), point)
+        res = BigFloat(tmp)
+
+        return res
+
+    def __lt__(self, other):
+        if type(other) == str:
+            return False
+        c1 = len(self.chr)
+        c2 = len(other.chr)
+        if c1 < c2:
+            self.chr = self.chr + '0' * (c2-c1)
+        if c1 > c2:
+            other.chr = other.chr + '0' * (c1-c2)
+
+        if self.sign == other.sign == True and len(str(self.integer)) < len(str(other.integer)) or (int(self.integer) < int(other.integer)):
+            return True
+        elif self.sign == False and other.sign == True:
+            return True
+        else:
+            if self.chr < other.chr:
+                return True
+            else:
+                return False
+
+
+    def _sqrt(self):
+        x_x = BigFloatAttributes(self.sign, str(self.integer), str(self.chr), str(self.exp))
+        x = BigFloat(x_x)
+        b2 = BigFloatAttributes(True, '2', '', '')
+        bb2 = BigFloat(b2)
+        y = x / bb2
+        if x.integer >= 2 and x.integer < 4:
+            t = BigFloatAttributes(True, '1', '', '')
+            tt = BigFloat(t)
+            p = BigFloatAttributes(True, '0', '', '')
+            prev = BigFloat(p)
+            ep = BigFloatAttributes(True, '1', '', '-15')
+            epp = BigFloat(ep)
+            while epp < prev - tt:
+                prev = tt
+                tt = (tt + self / tt) / bb2
+            return tt
+        else:
+            while y < x:
+                x = y
+                y = (x + self / x) / bb2
+            return y
+
+
+# +-, int, chr, e
+# b = BigFloatAttributes(True, '4', '', '-3')
+# bb = BigFloat(b)
+# c = BigFloatAttributes(True, '2', '', '')
+# cc = BigFloat(c)
+# print(bb)
+# print(cc)
+# print('---')
+# print('+:', bb + cc)
+# print('-:', bb - cc)
+# print('*:', bb * cc)
+# print('/:', bb / cc)
+# print('sqrt', bb._sqrt())
