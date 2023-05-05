@@ -1,0 +1,270 @@
+T_dict = {
+    'none': 0,
+    'sign': 1,
+    'int': 2,
+    'dot': 3,
+    'exp': 4,
+    'nan': 5,
+    'inf': 6,
+}
+
+
+class Token:
+
+    def __init__(self, type, value, length):
+        self.type = type
+        self.value = value
+        self.length = length
+
+    def __str__(self):
+        res = ''
+        if self.type == T_dict['none']:
+            return 'empty' + self.value
+        else:
+            return self.value
+
+
+
+EMPTY = Token(T_dict['none'], '', 0)
+
+
+class Interface():
+
+    def __init__(self):
+        pass
+
+    def check(self, string, index):
+        l = len(string)
+        if (index < 0) or (index >= l):
+            return False
+        return True
+
+    def mini_attributes(self, check_string, string_index):
+        if string_index in check_string:
+            return Token(T_dict['dot'], string_index, 1)
+        else:
+            return EMPTY
+
+
+class Tok_dot(Interface):
+
+    def __init__(self):
+        super().__init__()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        return self.mini_attributes('.', string[index])
+
+
+class Tok_sign(Interface):
+
+    def __init__(self):
+        super().__init__()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        return self.mini_attributes('+-', string[index])
+
+
+class Tok_exp(Interface):
+
+    def __init__(self):
+        super().__init__()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        return self.mini_attributes('e', string[index])
+
+
+class Tok_inf(Interface):
+
+    def __init__(self):
+        super().__init__()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        return self.mini_attributes('inf', string)
+
+
+class Tok_nan(Interface):
+
+    def __init__(self):
+        super().__init__()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        return self.mini_attributes('nan', string)
+
+
+class Tok_num(Interface):
+
+    def __init__(self):
+        super().__init__()
+        self.Tok_inf = Tok_inf()
+        self.Tok_nan = Tok_nan()
+
+    def interpret_mini(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        if index == 0 and string[index] in [str(i) for i in range(1, 10)]:
+            return Token(T_dict['int'], string[index], 1)
+        elif index == 0 and ((len(string) == 1 and string[index] == '0') or (string[index] == '0' and string[index+1] == '.')):
+            return Token(T_dict['int'], string[index], 1)
+        elif index != 0 and string[index] in [str(i) for i in range(0, 10)]:
+            return Token(T_dict['int'], string[index], 1)
+        else:
+            return EMPTY
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        if len(string) == 3 or (len(string) == 4 and (len(string) - index) == 3):
+            token_inf = self.Tok_inf.interpret(string[-3:-1] + string[-1], index)
+            if token_inf.type != T_dict['none']:
+                return Token(T_dict['inf'], token_inf.value, token_inf.length)
+            token_nan = self.Tok_nan.interpret(string[-3:-1] + string[-1], index)
+            if token_nan.type != T_dict['none']:
+                return Token(T_dict['nan'], token_nan.value, token_nan.length)
+
+        curr = index
+        token = self.interpret_mini(string, index)
+        while token.type != T_dict['none']:
+            if self.check(string, curr + token.length):
+                curr += token.length
+                token = self.interpret_mini(string, curr)
+            else:
+                return Token(T_dict['int'], string[index:], len(string) - index)
+
+        return Token(T_dict['int'], string[index: curr], curr - index)
+
+
+class Tok_z(Interface):
+
+    def __init__(self):
+        super().__init__()
+        self.Tok_num = Tok_num()
+        self.Tok_sign = Tok_sign()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        token_sign = self.Tok_sign.interpret(string, index)
+        if token_sign.type != T_dict['none']:
+            index += token_sign.length
+
+        token_n = self.Tok_num.interpret(string, index)
+
+        if token_n.type != T_dict['none']:
+            return Token(T_dict['int'], token_sign.value + token_n.value, token_sign.length + token_n.length)
+        else:
+            return EMPTY
+
+
+class Tok_q(Interface):
+
+    def __init__(self):
+        super().__init__()
+        self.Tok_z = Tok_z()
+        self.Tok_dot = Tok_dot()
+        self.Tok_num = Tok_num()
+        self.Tok_sign = Tok_sign()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        curr = index
+        token_z = self.Tok_z.interpret(string, curr)
+        if token_z.type != T_dict['none']:
+            curr += token_z.length
+            token_dot = self.Tok_dot.interpret(string, curr)
+
+            if token_dot.type != T_dict['none']:
+                curr += token_dot.length
+                token_frac = self.Tok_num.interpret(string, curr)
+
+                if token_frac.type != T_dict['none']:
+                    return Token(T_dict['int'], token_z.value + token_dot.value + token_frac.value,
+                                 token_z.length + token_dot.length + token_frac.length)
+                else:
+                    return Token(T_dict['int'], token_z.value + token_dot.value, token_z.length + token_dot.length)
+            else:
+                return token_z
+        else:
+
+            token_sign = self.Tok_sign.interpret(string, curr)
+            if token_sign.type != T_dict['none']:
+                curr += 1
+
+            token_dot = self.Tok_dot.interpret(string, curr)
+
+            if token_dot.type != T_dict['none']:
+                curr += token_dot.length
+                token_frac = self.Tok_num.interpret(string, index)
+
+                if token_frac.type != T_dict['none']:
+                    return Token(T_dict['int'], token_sign.value + token_dot.value + token_frac.value,
+                                 token_sign.length + token_dot.length + token_frac.length)
+                else:
+                    return EMPTY
+            else:
+                return EMPTY
+
+
+class Tok_r(Interface):
+
+    def __init__(self):
+        super().__init__()
+        self.Tok_q = Tok_q()
+        self.Tok_num = Tok_num()
+        self.Tok_sign = Tok_sign()
+        self.Tok_exp = Tok_exp()
+
+    def interpret(self, string, index):
+        if not self.check(string, index):
+            return EMPTY
+
+        curr = index
+        token_q = self.Tok_q.interpret(string, curr)
+
+        if token_q.type != T_dict['none']:
+            curr += token_q.length
+            token_exp = self.Tok_exp.interpret(string, curr)
+            if token_exp.type != T_dict['none']:
+                curr += token_exp.length
+                token_sign = self.Tok_sign.interpret(string, curr)
+                if token_sign.type != T_dict['none']:
+                    curr += token_sign.length
+                token_num = self.Tok_num.interpret(string, curr)
+                if token_num.type != T_dict['none']:
+                    return Token(T_dict['int'],
+                                 token_q.value + token_exp.value + token_sign.value + token_num.value,
+                                 token_q.length + token_exp.length + token_sign.length + token_num.length)
+
+                else:
+                    return token_q
+            else:
+                return token_q
+        else:
+            return EMPTY
+
+
+# t1 = Tok_num()
+# t3 = Tok_z()
+# t4 = Tok_q()
+# t5 = Tok_r()
+# test = '2e1'
+# print(t5.interpret(test, 0))
